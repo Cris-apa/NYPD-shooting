@@ -1,0 +1,105 @@
+---
+title: "NYPD Shooting Incident Data Analysis"
+author: "Cristian"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Introduction
+
+This report analyzes the NYPD Shooting Incident Data Historic. The dataset includes information about shooting incidents across various boroughs and over time. We will clean the data, explore it through visualizations, and build a logistic regression model to predict the likelihood of shooting incidents.
+
+## Data Import
+
+```{r}
+setwd("C:/Users/Cristian/Downloads")
+nypd_data <- read.csv("NYPD_Shooting_Incident_Data__Historic_ (1).csv")
+# Load the necessary libraries
+library(tidyverse)
+library(lubridate)
+
+# Clean the data
+nypd_data_clean <- nypd_data %>%
+  drop_na() %>%          # Remove rows with missing values
+  distinct() %>%         # Remove duplicates
+  mutate(
+    OCCUR_DATE = mdy(OCCUR_DATE),   # Convert OCCUR_DATE to Date format
+    BORO = factor(BORO)  # Ensure BORO is a factor for categorical analysis
+  )
+
+# Check the cleaned data
+head(nypd_data_clean)
+# Bar plot of incidents by borough
+ggplot(nypd_data_clean, aes(x = BORO)) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Shooting Incidents by Borough",
+       x = "Borough",
+       y = "Number of Incidents") +
+  theme_minimal()
+# Time series plot of incidents over time
+ggplot(nypd_data_clean, aes(x = OCCUR_DATE)) +
+  geom_bar(fill = "lightgreen") +
+  labs(title = "Shooting Incidents Over Time",
+       x = "Date",
+       y = "Number of Incidents") +
+  theme_minimal() +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+# Fit a logistic regression model to predict the likelihood of a shooting incident
+# For this example, we will predict if an incident was a shooting based on borough and time
+nypd_data_clean$STATISTICAL_MURDER_FLAG <- as.factor(nypd_data_clean$STATISTICAL_MURDER_FLAG)
+
+model <- glm(STATISTICAL_MURDER_FLAG ~ BORO + OCCUR_DATE, 
+             data = nypd_data_clean, 
+             family = binomial())
+
+summary(model)
+# Temporal bias: Check if incidents are more prevalent during specific years
+yearly_count <- nypd_data_clean %>%
+  mutate(year = year(OCCUR_DATE)) %>%
+  group_by(year) %>%
+  summarise(incident_count = n())
+
+# Time series plot of incidents over years to check for temporal bias
+ggplot(yearly_count, aes(x = year, y = incident_count)) +
+  geom_line(group = 1, color = "blue") +
+  geom_point(color = "red") +
+  labs(title = "Shooting Incidents Over Time (Yearly)",
+       x = "Year",
+       y = "Number of Incidents") +
+  theme_minimal()
+# Analyze demographic bias by checking for distribution of victims' and perpetrators' races
+victim_race_count <- nypd_data_clean %>%
+  group_by(VIC_RACE) %>%
+  summarise(incident_count = n())
+
+# Plot distribution of victims' race
+ggplot(victim_race_count, aes(x = VIC_RACE, y = incident_count, fill = VIC_RACE)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Shooting Incidents by Victim Race",
+       x = "Victim Race",
+       y = "Number of Incidents") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1")
+# Calculate incident counts for each perpetrator race
+perp_race_count <- nypd_data_clean %>%
+  group_by(PERP_RACE) %>%
+  summarise(incident_count = n())
+
+# Check the data to confirm it's been created correctly
+head(perp_race_count)
+
+# Plot distribution of perpetrators' race with custom colors for "White Hispanic"
+ggplot(perp_race_count, aes(x = PERP_RACE, y = incident_count, fill = PERP_RACE)) +
+  geom_bar(stat = "identity", width = 0.7) +  # Adjust width to space out the bars
+  labs(title = "Shooting Incidents by Perpetrator Race",
+       x = "Perpetrator Race",
+       y = "Number of Incidents") +
+  theme_minimal() +
+  scale_fill_manual(values = c("White" = "#1f77b4", 
+                               "Black" = "#ff7f0e", 
+                               "Hispanic" = "#2ca02c", 
+                               "White Hispanic" = "#d62728", 
+                               "Asian" = "#9467bd", 
+                               "Other" = "#8c564b")) +  # Custom color for "White Hispanic"
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
