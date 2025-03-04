@@ -1,0 +1,68 @@
+---
+title: "NYPD Shooting Incident Data Analysis"
+author: "Cristian"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Introduction
+This report analyzes the NYPD Shooting Incident Data Historic dataset. It includes data on shooting incidents across various boroughs over time. The analysis involves data cleaning, visualizations, and a logistic regression model to predict shooting incidents.
+
+## Load Libraries
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(broom)
+```
+
+## Load and Clean Data
+```{r}
+nypd_data <- read_csv("NYPD_Shooting_Incident_Data__Historic_ (1).csv")
+
+nypd_data_clean <- nypd_data %>%
+  drop_na() %>%
+  distinct() %>%
+  mutate(
+    OCCUR_DATE = mdy(OCCUR_DATE),
+    BORO = factor(BORO),
+    STATISTICAL_MURDER_FLAG = as.factor(STATISTICAL_MURDER_FLAG)
+  )
+```
+
+## Visualization 1: Shooting Incidents by Borough
+```{r}
+ggplot(nypd_data_clean, aes(x = BORO)) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Shooting Incidents by Borough", x = "Borough", y = "Number of Incidents") +
+  theme_minimal()
+```
+
+## Visualization 2: Shooting Incidents Over Time
+```{r}
+ggplot(nypd_data_clean, aes(x = OCCUR_DATE)) +
+  geom_histogram(binwidth = 30, fill = "lightgreen") +
+  labs(title = "Shooting Incidents Over Time", x = "Date", y = "Number of Incidents") +
+  theme_minimal() +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+```
+
+## Predictive Model: Logistic Regression
+```{r}
+model <- glm(STATISTICAL_MURDER_FLAG ~ BORO + OCCUR_DATE, data = nypd_data_clean, family = binomial())
+summary(model)
+```
+
+## Bias Considerations
+- **Temporal Bias**: Shooting incidents may be more prevalent in certain years or months.
+- **Demographic Bias**: Certain racial groups may be overrepresented due to systemic factors.
+- **Reporting Bias**: Data may not capture unreported incidents.
+
+## Conclusion
+This report explored trends in NYPD shooting incidents using visualizations and logistic regression modeling. Further research could incorporate additional predictive factors such as location and time of day.
